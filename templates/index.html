@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分數表與模擬器</title>
+    <link rel="stylesheet" href="styles.css"> <!-- 可選的 CSS 文件 -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #uploadSection {
+            margin-bottom: 20px;
+        }
+        #scoreTable, #simulator {
+            display: none; /* 隱藏分數表格與模擬器 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            /* top: 0;
+            right: 0; */
+            width: 150px;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-left: 1px solid #ddd;
+            height: 100%;
+        }
+        .option-row {
+            /* display: flex; */
+            flex-direction: row;
+            margin-bottom: 15px;
+        }
+        .option-row label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .option-row input[type="text"] {
+            width: 100%;
+            margin-bottom: 5px;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+        .option-row select {
+            width: 100%;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="uploadSection">
+        <h1>上傳分數</h1>
+        <form id="uploadForm">
+            <input type="file" name="file" accept=".json" required>
+            <button type="submit">上傳</button>
+        </form>
+    </div>
+    
+    <button onclick="showTable()">顯示分數表</button>
+    <button onclick="showSimulator()">顯示模擬器</button>
+    
+    <div id="scoreTable">
+        <h1>分數表</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>標題</th>
+                    <th>難度</th>
+                    <th>得分</th>
+                    <th>常數</th>
+                    <th>最大 OP</th>
+                    <th>排名</th>
+                    <th>OP</th>
+                </tr>
+            </thead>
+            <tbody id="scoreBody">
+                <!-- 分數數據將通過 AJAX 更新 -->
+            </tbody>
+        </table>
+    </div>
+
+    <div id="simulator">
+        <h1>模擬器</h1>
+        <button id="calculateBtn">計算 OP 加總與百分比</button>
+        <!-- 新增忽略 0 分紀錄的勾選框 -->
+        <label>
+            <input type="checkbox" id="ignoreZeroScores" />
+            忽略 0 分紀錄
+        </label>
+        <div id="results">
+            <p id="opTotal"></p>
+            <p id="percentage"></p>
+        </div>
+        <!-- 右側選項欄 -->
+        <div class="sidebar">
+            <!-- 行數選項 -->
+            <div class="option-row">
+                <label for="row_13_below">13以下</label>
+                <input type="text" id="row_13_below_score" placeholder="輸入分數">
+                <select id="row_13_below_fcaj">
+                    <option value="None"></option>
+                    <option value="FC">FC</option>
+                    <option value="AJ">AJ</option>
+                </select>
+            </div>
+
+            <div class="option-row">
+                <label for="row_13_plus">13+</label>
+                <input type="text" id="row_13_plus_score" placeholder="輸入分數">
+                <select id="row_13_plus_fcaj">
+                    <option value="None"></option>
+                    <option value="FC">FC</option>
+                    <option value="AJ">AJ</option>
+                </select>
+            </div>
+
+            <div class="option-row">
+                <label for="row_14">14</label>
+                <input type="text" id="row_14_score" placeholder="輸入分數">
+                <select id="row_14_fcaj">
+                    <option value="None"></option>
+                    <option value="FC">FC</option>
+                    <option value="AJ">AJ</option>
+                </select>
+            </div>
+
+            <div class="option-row">
+                <label for="row_14_plus">14+</label>
+                <input type="text" id="row_14_plus_score" placeholder="輸入分數">
+                <select id="row_14_plus_fcaj">
+                    <option value="None"></option>
+                    <option value="FC">FC</option>
+                    <option value="AJ">AJ</option>
+                </select>
+            </div>
+
+            <div class="option-row">
+                <label for="row_15">15</label>
+                <input type="text" id="row_15_score" placeholder="輸入分數">
+                <select id="row_15_fcaj">
+                    <option value="None"></option>
+                    <option value="FC">FC</option>
+                    <option value="AJ">AJ</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').onsubmit = function(event) {
+            event.preventDefault(); // 防止默認表單提交
+            const formData = new FormData(this);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data.message); // 上傳成功的消息
+                fetchScores(); // 上傳後獲取分數
+            })
+            .catch(error => console.error('Error:', error));
+        };
+
+        function fetchScores() {
+            fetch('/get_scores')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('scoreBody');
+                    tbody.innerHTML = ''; // 清空現有數據
+                    console.log(data);
+                    data.scores.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${record.title}</td>
+                            <td>${record.difficulty}</td>
+                            <td>${record.score}</td>
+                            <td>${record.const || 'N/A'}</td>
+                            <td>${record.maxOps || 'N/A'}</td>
+                            <td>${record.Rank || 'N/A'}</td>
+                            <td>${record.op || 'N/A'}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+
+                    document.getElementById('scoreTable').style.display = 'block'; // 顯示分數表
+                    document.getElementById('simulator').style.display = 'none'; // 隱藏模擬器
+                })
+                .catch(error => console.error('Error fetching scores:', error));
+        }
+
+        function showTable() {
+            document.getElementById('scoreTable').style.display = 'block';
+            document.getElementById('simulator').style.display = 'none';
+        }
+
+        function showSimulator() {
+            document.getElementById('scoreTable').style.display = 'none';
+            document.getElementById('simulator').style.display = 'block';
+        }
+        document.getElementById('calculateBtn').addEventListener('click', function() {
+            // 收集所有輸入框和下拉選單的值
+            const data = {
+                ignoreZero: document.getElementById('ignoreZeroScores').checked,
+                scores: {
+                    row_13_below: {
+                        score: document.getElementById('row_13_below_score').value,
+                        fcaj: document.getElementById('row_13_below_fcaj').value
+                    },
+                    row_13_plus: {
+                        score: document.getElementById('row_13_plus_score').value,
+                        fcaj: document.getElementById('row_13_plus_fcaj').value
+                    },
+                    row_14: {
+                        score: document.getElementById('row_14_score').value,
+                        fcaj: document.getElementById('row_14_fcaj').value
+                    },
+                    row_14_plus: {
+                        score: document.getElementById('row_14_plus_score').value,
+                        fcaj: document.getElementById('row_14_plus_fcaj').value
+                    },
+                    row_15: {
+                        score: document.getElementById('row_15_score').value,
+                        fcaj: document.getElementById('row_15_fcaj').value
+                    }
+                }
+            };
+
+            // 發送 POST 請求到後端
+            fetch('/calculate_op', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('opTotal').innerText = `OP 加總: ${data.op_total}`;
+                document.getElementById('percentage').innerText = `百分比: ${data.percentage}`;
+            })
+            .catch(error => console.error('Error fetching OP calculation:', error));
+        });
+    </script>
+</body>
+</html>
+ 

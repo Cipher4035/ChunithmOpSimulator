@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload JSON</title>
+</head>
+<body>
+    <h1>Upload JSON File</h1>
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".json" required>
+        <button type="submit">Upload</button>
+    </form>
+    <br>
+    <br>
+    <div>javascript:(function(){var e=document.createElement("script");e.src="https://reiwa.f5.si/chuni_scoredata/main.js?"+String(Math.floor((new Date).getTime()/1e3)),document.body.appendChild(e)})();</div>
+</body>
+</html>
